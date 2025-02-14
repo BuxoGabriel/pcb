@@ -2,12 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum PCB_STATES {
-    READY,
-    BLOCKED,
-    RUNNING
-};
-
 typedef struct cpu_state {
     int stack_pointer;
     int r1;
@@ -20,6 +14,14 @@ cpu_state_t *cpu_state_create() {
     state0->r1 = 0;
     state0->r2 = 0;
     return state0;
+}
+
+void cpu_state_free(cpu_state_t *state) {
+    if(state == NULL) {
+        fprintf(stderr, "Tried to free cpu_state that does not exist\n");
+        return;
+    }
+    free(state);
 }
 
 typedef struct memory {
@@ -35,14 +37,29 @@ memory_t *memory_create() {
     return mem0;
 }
 
+void memory_free(memory_t *mem) {
+    if(mem == NULL) {
+        fprintf(stderr, "Tried to free memory that does not exist\n");
+    }
+    free(mem->address);
+    free(mem);
+}
+
 // typedef struct scheduling_info {
 //     int time_running;
 // } scheduling_info_t;
 
 typedef struct file {
-    int file;
+    FILE *file;
     file_t *next;
 } file_t;
+
+void files_free(file_t *file) {
+    if(file == NULL) return;
+    fclose(file->file);
+    files_free(file->next);
+    free(file);
+}
 
 typedef struct pcb {
     cpu_state_t *cpu_state;
@@ -78,6 +95,26 @@ pcb_t* pcb_create(pcb_t *parent, cpu_state_t *state0, memory_t *mem0) {
     return pcb;
 }
 
+void pcb_free(pcb_t *pcb) {
+    pcb_t *child = pcb->child;
+    while(child != NULL) {
+        pcb_t *next = child->ys;
+        pcb_free(child);
+        child = next;
+    }
+    cpu_state_free(pcb->cpu_state);
+    memory_free(pcb->memory);
+    files_free(pcb->open_files);
+    // If this process has an older sibl
+    if(pcb->os) {
+        pcb->os->ys = pcb->ys;
+    }
+    if(pcb->parent && pcb->parent->child == pcb) {
+        pcb->parent->child = pcb->ys;
+    }
+    free(pcb);
+}
+
 pcb_t* pcb_get_last_child(const pcb_t *parent) {
     if(parent == NULL) return NULL;
     pcb_t *child = parent->child;
@@ -88,12 +125,28 @@ pcb_t* pcb_get_last_child(const pcb_t *parent) {
     return child;
 }
 
+int pcb_get_state(pcb_t *pcb) {
+    if(pcb == NULL) {
+        fprintf(stderr, "Tried to get state on NULL pcb\n");
+        return -1;
+    }
+    return pcb->state;
+}
+
+void pcb_set_state(pcb_t *pcb, int state) {
+    pcb->state = state;
+}
+
 pcb_t* pcb_get_next(pcb_t *pcb) {
     if(pcb == NULL) {
         fprintf(stderr, "Tried to get next on NULL pcb\n");
         return NULL;
     }
     return pcb->next;
+}
+
+void pcb_set_next(pcb_t *pcb, pcb_t *next) {
+    pcb->next = next;
 }
 
 void pcb_run(const pcb_t *pcb) {
