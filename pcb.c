@@ -1,12 +1,6 @@
+#include "pcb.h"
+#include <stdio.h>
 #include <stdlib.h>
-
-#define PCB_MEM_SIZE 1000
-
-typedef struct pcb pcb_t;
-typedef struct file file_t;
-
-int first_available_index(void *arr[], int size);
-pcb_t* get_last_child(const pcb_t *parent);
 
 enum PCB_STATES {
     READY,
@@ -16,14 +10,15 @@ enum PCB_STATES {
 
 typedef struct cpu_state {
     int stack_pointer;
-    int gen_1;
-    int gen_2;
-    int gen_3;
-    int gen_4;
+    int r1;
+    int r2;
 } cpu_state_t;
 
-cpu_state_t cpu_state_create() {
-    cpu_state_t state0 = { 0, 0, 0, 0, 0 };
+cpu_state_t *cpu_state_create() {
+    cpu_state_t *state0 = malloc(sizeof(cpu_state_t));
+    state0->stack_pointer = 0;
+    state0->r1 = 0;
+    state0->r2 = 0;
     return state0;
 }
 
@@ -32,11 +27,17 @@ typedef struct memory {
     int size;
 } memory_t;
 
-memory_t memory_create() {
+memory_t *memory_create() {
     void *address = malloc(PCB_MEM_SIZE);
-    memory_t mem0 = { address, PCB_MEM_SIZE };
+    memory_t *mem0 = malloc(sizeof(memory_t));
+    mem0->address = address;
+    mem0->size = PCB_MEM_SIZE;
     return mem0;
 }
+
+// typedef struct scheduling_info {
+//     int time_running;
+// } scheduling_info_t;
 
 typedef struct file {
     int file;
@@ -44,10 +45,10 @@ typedef struct file {
 } file_t;
 
 typedef struct pcb {
-    cpu_state_t cpu_state;
+    cpu_state_t *cpu_state;
     int state;
-    memory_t memory;
-    file_t* open_files;
+    memory_t *memory;
+    file_t *open_files;
     pcb_t *next;
     pcb_t *parent;
     pcb_t *child;
@@ -55,10 +56,12 @@ typedef struct pcb {
     pcb_t *ys;
 } pcb_t;
 
-pcb_t* pcb_create(pcb_t *pcbs[], int size, pcb_t *parent, cpu_state_t state0, memory_t mem0) {
-    int index = first_available_index((void **) pcbs, size);
-    if(index == -1) return NULL;
+pcb_t* pcb_create(pcb_t *parent, cpu_state_t *state0, memory_t *mem0) {
     pcb_t *pcb = malloc(sizeof(pcb_t));
+    if(pcb == NULL) {
+        fprintf(stderr, "Failed to allocate enough space for pcb\n");
+        exit(1);
+    }
     pcb->cpu_state = state0;
     pcb->state = READY;
     pcb->memory = mem0;
@@ -66,23 +69,17 @@ pcb_t* pcb_create(pcb_t *pcbs[], int size, pcb_t *parent, cpu_state_t state0, me
     pcb->next = NULL;
     pcb->parent = parent;
     pcb->child = NULL;
-    pcb_t *os = get_last_child(parent);
-    os->ys = pcb;
+    pcb_t *os = pcb_get_last_child(parent);
     pcb->os = os;
     pcb->ys = NULL;
+    if(os != NULL) {
+        os->ys = pcb;
+    }
     return pcb;
 }
 
-int first_available_index(void *arr[], int size) {
-    for(int i = 0; i < size; i++) {
-        if(arr[i] == NULL) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-pcb_t* get_last_child(const pcb_t *parent) {
+pcb_t* pcb_get_last_child(const pcb_t *parent) {
+    if(parent == NULL) return NULL;
     pcb_t *child = parent->child;
     if(child == NULL) return NULL;
     while(child->ys != NULL) {
@@ -91,13 +88,30 @@ pcb_t* get_last_child(const pcb_t *parent) {
     return child;
 }
 
-int main(void) {
-    pcb_t* pcbs[20];
-    pcb_t* priority[5];
+pcb_t* pcb_get_next(pcb_t *pcb) {
+    if(pcb == NULL) {
+        fprintf(stderr, "Tried to get next on NULL pcb\n");
+        return NULL;
+    }
+    return pcb->next;
+}
 
-    cpu_state_t state0 = cpu_state_create();
-    memory_t mem0 = memory_create();
-    priority[4] = pcb_create(pcbs, 20, NULL, state0, mem0);
-
-    return 0;
+void pcb_run(const pcb_t *pcb) {
+    if(pcb == NULL) {
+        fprintf(stderr, "Tried to run NULL pcb\n");
+        return;
+    }
+    char* state;
+    switch(pcb->state) {
+        case READY:
+        state = "ready";
+        break;
+        case BLOCKED:
+        state = "blocked";
+        break;
+        case RUNNING:
+        state = "running";
+        break;
+    }
+    printf("pcb at %p is %s\n", pcb, state);
 }
