@@ -1,12 +1,18 @@
 CC = gcc
 CFLAGS = -Wall -Werror -std=c99
 OBJECTS = pcb.o scheduler.o main.o
+SRCDIR = src
 OUTDIR = out
+TARGET = $(OUTDIR)/main
 
-$(OUTDIR)/main: $(addprefix $(OUTDIR)/, $(OBJECTS))
+makeall: $(OUTDIR) $(TARGET)
+$(TARGET): $(addprefix $(OUTDIR)/, $(OBJECTS))
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(OUTDIR)/%.o: %.c
+$(OUTDIR):
+	mkdir $(OUTDIR)
+
+$(OUTDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PHONY: clean
