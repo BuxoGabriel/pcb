@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Werror -std=c99
-OBJECTS = pcb.o scheduler.o main.o
+OBJECTS = pcb.o scheduler.o main.o rcb.o
 SRCDIR = src
 OUTDIR = out
 TARGET = $(OUTDIR)/main

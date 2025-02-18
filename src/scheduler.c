@@ -46,8 +46,8 @@ int scheduler_run(scheduler_t *scheduler) {
         prio--;
     }
     if(highest_prio_pcb == NULL) return 1;
-    pcb_set_state(highest_prio_pcb, RUNNING);
+    pcb_set_state(highest_prio_pcb, PCB_RUNNING);
     pcb_run(highest_prio_pcb);
-    pcb_free(highest_prio_pcb);
+    pcb_free(highest_prio_pcb, scheduler);
     return 0;
 }
